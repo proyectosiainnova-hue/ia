@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerebro Creciente</title>
+<style>
+  :root{--bg:#0b0f1a;--panel:#141a2b;--card:#0f1424;--txt:#e6ebff;--mut:#8b94b3;--acc:#7cf3ff;--acc2:#ff7ce5;--ok:#7dffa8}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(ellipse at top,#16203a,var(--bg) 70%);color:var(--txt);
+       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;line-height:1.45}
+  header{padding:14px 18px 4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:22px;letter-spacing:.5px}
+  h1 span{color:var(--acc)}
+  .stat{color:var(--mut);font-size:14px}
+  .stat b{color:var(--acc2);font-size:18px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .tabs button{width:auto;background:#1b2340;font-weight:500;padding:8px 12px;font-size:14px}
+  .tabs button.on{background:linear-gradient(135deg,#2a6df4,#7c3aed);font-weight:700}
+  section{display:none}
+  section.on{display:block}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:14px;padding:10px 18px 18px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .stage{position:relative;background:#070a12;border-radius:16px;overflow:hidden;
+         box-shadow:0 0 0 1px #1f2945 inset;aspect-ratio:4/3;width:100%}
+  canvas{width:100%;height:100%;display:block}
+  .bubble{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:90%;
+          background:rgba(20,26,43,.92);border:1px solid #2b3760;border-radius:14px;padding:10px 16px;
+          font-size:18px;text-align:center;opacity:0;transition:opacity .4s}
+  .bubble.on{opacity:1}
+  .bubble small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+  .panel{background:var(--panel);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border-radius:12px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:13px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+  input,textarea{width:100%;background:#070a12;border:1px solid #2b3760;color:var(--txt);border-radius:10px;
+        padding:10px;font-size:16px;margin-bottom:8px;font-family:inherit}
+  input:focus{outline:none;border-color:var(--acc)}
+  button{background:linear-gradient(135deg,#2a6df4,#7c3aed);color:#fff;border:0;border-radius:10px;
+         padding:10px 14px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+  button.sec{background:#222b47;font-weight:500}
+  button:active{transform:scale(.98)}
+  .row{display:flex;gap:8px}
+  .log{font-size:13px;color:var(--mut);min-height:18px}
+  .list{max-height:200px;overflow:auto;font-size:13px}
+  .list > div{padding:5px 0;border-bottom:1px solid #1b2238}
+  .list .top{display:flex;align-items:center;gap:8px}
+  .list .qa{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:2px 0}
+  .list .who{color:var(--mut);font-size:12px;width:92px;flex:none}
+  .list .n{font-size:11px;text-align:right}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+  .list .n{margin-left:auto;color:var(--mut);white-space:nowrap}
+  label.sl{font-size:13px;color:var(--mut);display:flex;justify-content:space-between}
+  input[type=range]{padding:0;margin:4px 0 0;accent-color:var(--acc)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.on{display:flex}
+  .modal .card{max-width:520px;width:100%}
+  /* pensamiento */
+  .think .q{font-size:14px;color:var(--mut)}
+  .think .a{font-size:20px;font-weight:700;margin:2px 0 8px}
+  .chip{display:inline-block;background:#1d2645;border-radius:8px;padding:2px 8px;margin:2px;font-size:13px}
+  .chip.hit{background:#1e4a37;color:var(--ok)}
+  .bar{height:8px;border-radius:4px;background:#1b2238;overflow:hidden;margin:3px 0 8px}
+  .bar i{display:block;height:100%}
+  .cand{font-size:13px}
+  .lbl{font-size:12px;color:var(--mut);margin-top:6px}
+  /* páginas de texto */
+  .page{max-width:900px;margin:0 auto;padding:10px 18px 30px}
+  .page h2{font-size:22px;margin:16px 0 6px}
+  .page p.lead{color:var(--mut);margin-top:0}
+  .types{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .type{background:var(--panel);border-radius:14px;padding:14px;border-top:3px solid var(--c)}
+  .type h3{margin:0 0 2px;font-size:17px}
+  .type .tag{font-size:12px;color:var(--c);font-weight:600}
+  .type p{margin:6px 0;font-size:14px}
+  .type .f{font-family:ui-monospace,Menlo,monospace;background:#070a12;border-radius:8px;padding:6px 8px;font-size:13px;color:var(--acc)}
+  .type .use{font-size:13px;color:var(--mut)}
+  .note{background:#1a1530;border-left:3px solid var(--acc2);padding:10px 14px;border-radius:8px;margin:14px 0;font-size:14px}
+  .formula{background:var(--panel);border-radius:14px;padding:14px;margin:10px 0}
+  .formula .eq{font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:22px;text-align:center;padding:10px;
+               background:#070a12;border-radius:10px;margin:8px 0;color:var(--acc);overflow-x:auto;white-space:nowrap}
+  .formula .eq sub,.formula .eq sup{font-size:60%}
+  .formula h3{margin:0;font-size:16px}
+  .formula p{margin:6px 0;font-size:14px}
+  .num{display:inline-block;background:var(--acc2);color:#000;border-radius:50%;width:22px;height:22px;text-align:center;
+       font-weight:700;font-size:13px;line-height:22px;margin-right:6px}
+  pre{background:#070a12;border-radius:12px;padding:14px;overflow-x:auto;font-size:13px;line-height:1.5;margin:8px 0}
+  code .k{color:#ff7ce5} code .c{color:#6b7699;font-style:italic} code .s{color:#7dffa8} code .fn{color:#7cf3ff}
+  .schema{background:var(--panel);border-radius:14px;padding:10px;text-align:center}
+  .schema svg{width:100%;max-width:640px;height:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 Cerebro <span>Creciente</span></h1>
+  <div class="stat">Neuronas: <b id="cnt">0</b> · Ideas: <b id="ideas">0</b></div>
+  <nav class="tabs">
+    <button data-t="cerebro" class="on">🧠 Cerebro</button>
+    <button data-t="tipos">🔬 Tipos de neuronas</button>
+    <button data-t="codigo">📐 Código y matemáticas</button>
+    <button data-t="herramientas">🛠️ Herramientas de IA</button>
+    <button data-t="robotica">🤖 Robótica actual</button>
+  </nav>
+</header>
+
+<!-- ================= CEREBRO ================= -->
+<section id="cerebro" class="on">
+<div class="grid">
+  <div>
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="bubble" id="bubble"></div>
+    </div>
+    <div class="card think" id="think" style="margin-top:12px">
+      <h2>Lo que pensó</h2>
+      <div class="log">Hazle una pregunta y aquí verás de dónde sacó la respuesta.</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="card">
+      <h2>Enseñar</h2>
+      <input id="fEns" placeholder="Si alguien dice… (ej: hola)">
+      <input id="rEns" placeholder="…yo respondo (ej: ¡Hola! ¿Cómo estás?)">
+      <button id="bEns">✨ Enseñar</button>
+    </div>
+    <div class="card">
+      <h2>Preguntar</h2>
+      <input id="fPre" placeholder="Escribe algo…">
+      <button id="bPre">⚡ Preguntar</button>
+    </div>
+    <div class="log" id="log">El cerebro está vacío. Enséñale algo.</div>
+    <div class="card">
+      <h2>Lo que le has enseñado</h2>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="card">
+      <label class="sl">Vigilancia (qué tan fácil nace una neurona) <span id="vigv">0.55</span></label>
+      <input type="range" id="vig" min="0.2" max="0.9" step="0.05" value="0.55">
+    </div>
+    <div class="row">
+      <button class="sec" id="bEj">Ejemplos</button>
+      <button class="sec" id="bExp">Copiar / Cargar</button>
+      <button class="sec" id="bBorr">Borrar</button>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================= TIPOS ================= -->
+<section id="tipos">
+<div class="page">
+  <h2>Tipos de neuronas en la IA</h2>
+  <p class="lead">Todas hacen lo mismo en el fondo: reciben números, los combinan con sus <b>pesos</b> y entregan otro número. Lo que cambia es <i>cómo</i> miran la información.</p>
+
+  <div class="types">
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">LA BÁSICA · 1958</div>
+      <h3>Perceptrón (neurona densa)</h3>
+      <p>Multiplica cada entrada por un peso, las suma y decide si "se activa".</p>
+      <div class="f">y = f(w₁x₁ + w₂x₂ + … + b)</div>
+      <p class="use">📍 Está dentro de casi toda la IA actual. La función <b>f</b> suele ser ReLU: si el número es negativo, sale 0.</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">VISIÓN</div>
+      <h3>Convolucional (CNN)</h3>
+      <p>Mira la imagen por ventanitas pequeñas buscando un patrón: un borde, un ojo, una rueda.</p>
+      <div class="f">un mismo filtro recorre toda la imagen</div>
+      <p class="use">📍 Reconocer caras, leer placas, detectar objetos con una cámara como la de un robot.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">MEMORIA DE CORTO PLAZO</div>
+      <h3>Recurrente (RNN / LSTM)</h3>
+      <p>Recuerda lo que vio en el paso anterior. Lee una frase palabra por palabra.</p>
+      <div class="f">hₜ = f(W·xₜ + U·hₜ₋₁)</div>
+      <p class="use">📍 Se usó mucho para voz y traducción. Hoy casi la reemplazó la atención.</p>
+    </div>
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">LA DE LOS CHATBOTS</div>
+      <h3>Atención (Transformer)</h3>
+      <p>Cada palabra "mira" a todas las demás y decide cuáles le importan para entender la frase.</p>
+      <div class="f">Atención = softmax(Q·Kᵀ/√d)·V</div>
+      <p class="use">📍 Claude, ChatGPT, Gemini, traductores, generadores de imágenes.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">SIGNIFICADO</div>
+      <h3>Embeddings (vectores de significado)</h3>
+      <p>Convierten cada palabra en una lista de números, de modo que palabras parecidas quedan cerca.</p>
+      <div class="f">"carro" ≈ "auto" · "rey" − "hombre" + "mujer" ≈ "reina"</div>
+      <p class="use">📍 Buscadores, recomendaciones y la entrada de todos los chatbots.</p>
+    </div>
+    <div class="type" style="--c:#ffe66b">
+      <div class="tag">⭐ LA DE ESTE CEREBRO</div>
+      <h3>Prototipo adaptativa (ART / SOM)</h3>
+      <p>Cada neurona guarda un ejemplo típico. Si llega algo nuevo y distinto, nace otra neurona.</p>
+      <div class="f">gana la neurona más parecida</div>
+      <p class="use">📍 Aprendizaje continuo, agrupar datos, detectar cosas raras (anomalías).</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">LA MÁS PARECIDA A LA REAL</div>
+      <h3>Neurona de pulsos (spiking)</h3>
+      <p>Acumula energía y "dispara" un pulso cuando pasa un límite, como una neurona del cerebro.</p>
+      <div class="f">si voltaje &gt; umbral → ¡pulso!</div>
+      <p class="use">📍 Chips neuromórficos que gastan muy poca energía. Todavía en investigación.</p>
+    </div>
+    <div class="type" style="--c:#ff9f43">
+      <div class="tag">MODELO DEL MUNDO · META 2022+</div>
+      <h3>JEPA (predice ideas, no palabras)</h3>
+      <p>No genera palabras ni píxeles. Aprende a predecir la <b>idea</b> (el embedding) de lo que va a pasar, y con eso elige la acción que lleva a la meta.</p>
+      <div class="f">idea_ahora + acción → predice idea_futura → elige la mejor acción</div>
+      <p class="use">📍 Propuesto por Yann LeCun. I-JEPA (imágenes), V-JEPA (video) y V-JEPA 2, que ya planea movimientos de brazos robóticos.</p>
+    </div>
+    <div class="type" style="--c:#4dd0e1">
+      <div class="tag">NO HABLA, DECIDE · TYPESAFE AI 2026</div>
+      <h3>Jev (modelo "Sistema 1")</h3>
+      <p>No escribe respuestas: lee un texto y devuelve una <b>decisión con tipo</b> (sí/no, una categoría, un número) junto con su <b>probabilidad</b>. Es un modelo discriminativo entrenado a escala de internet.</p>
+      <div class="f">"¿Este correo es spam?" → { spam: sí, P = 0.97 }</div>
+      <p class="use">📍 Clasificar, moderar y filtrar en 70–500 ms, mucho más rápido y barato que un chatbot. Se entrena con "aprendizaje por refuerzo para decisiones calibradas". Su arquitectura no es pública.</p>
+    </div>
+  </div>
+
+  <div class="note">💡 Un modelo como Claude tiene miles de millones de pesos repartidos en capas de perceptrones y atención. Este cerebro tiene solo 256 pesos por neurona, pero la idea es la misma: <b>aprender es ajustar números</b>.</div>
+
+  <h2>📱 Algoritmos de las redes sociales</h2>
+  <p class="lead">Cuando abres TikTok, Instagram, YouTube o X hay miles de millones de publicaciones posibles. Unos pocos algoritmos deciden cuáles ver primero. Casi todos siguen el mismo camino:</p>
+
+  <div class="formula">
+    <h3>El embudo del feed</h3>
+    <div class="eq" style="font-family:inherit;font-size:16px">miles de millones → <b>① candidatos</b> (~1 000) → <b>② ranking</b> (~100) → <b>③ filtros y mezcla</b> → tu pantalla</div>
+    <p><span class="num">1</span><b>Candidatos:</b> buscar rápido lo que <i>podría</i> gustarte (de quién sigues, de gente parecida a ti, de temas que ves).</p>
+    <p><span class="num">2</span><b>Ranking:</b> una red neuronal grande le pone una nota a cada candidato.</p>
+    <p><span class="num">3</span><b>Filtros:</b> quitar lo prohibido o repetido y mezclar variedad (no 10 videos seguidos del mismo creador).</p>
+  </div>
+
+  <div class="types">
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">"A GENTE COMO TÚ LE GUSTÓ…"</div>
+      <h3>Filtrado colaborativo</h3>
+      <p>Busca usuarios con gustos parecidos a los tuyos y te muestra lo que a ellos les gustó y tú no has visto.</p>
+      <div class="f">tabla usuarios × publicaciones → rellenar los huecos</div>
+      <p class="use">📍 El clásico de YouTube, Netflix y Spotify. Base de casi todos los recomendadores.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">CANDIDATOS · DOS TORRES</div>
+      <h3>Embeddings de usuario y contenido</h3>
+      <p>Una red convierte <b>tu perfil</b> en un vector y otra convierte cada <b>video</b> en otro vector. Se recomiendan los videos cuyo vector queda cerca del tuyo.</p>
+      <div class="f">afinidad = vector_tú · vector_video</div>
+      <p class="use">📍 YouTube, Instagram Explorar, TikTok. Igual que los embeddings de arriba, pero con personas.</p>
+    </div>
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">RANKING · EL CORAZÓN</div>
+      <h3>Predicción de interacción</h3>
+      <p>Una red profunda (perceptrones + atención) adivina la probabilidad de que des like, comentes, compartas o veas el video completo, y lo combina en una nota.</p>
+      <div class="f">nota = a·P(like) + b·P(compartir) + c·P(ver todo) − d·P(ocultar)</div>
+      <p class="use">📍 Feed de Facebook e Instagram, "Para ti" de X (su código se publicó en 2023).</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">TIKTOK "PARA TI"</div>
+      <h3>Aprendizaje en tiempo real</h3>
+      <p>El modelo se actualiza mientras usas la app. La señal más fuerte es el <b>tiempo de visualización</b>: si repites un video, aprende en segundos.</p>
+      <div class="f">ves → señal → ajusta pesos → siguiente video</div>
+      <p class="use">📍 TikTok (sistema Monolith), Reels y Shorts copiaron la idea.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">QUIÉN CONOCE A QUIÉN</div>
+      <h3>Grafos sociales (GNN)</h3>
+      <p>La red social es un mapa de nodos (personas, posts) unidos por flechas (sigue, le gusta). Las redes neuronales de grafos aprenden de los vecinos de cada nodo.</p>
+      <div class="f">amigos de tus amigos → "personas que quizás conozcas"</div>
+      <p class="use">📍 Sugerencias de amigos en Facebook/LinkedIn, Pinterest (PinSage), comunidades de X.</p>
+    </div>
+    <div class="type" style="--c:#ffe66b">
+      <div class="tag">EXPLORAR vs. EXPLOTAR</div>
+      <h3>Bandidos multibrazo</h3>
+      <p>Como elegir máquinas tragamonedas: casi siempre te muestra lo que ya sabe que te gusta, pero a veces prueba algo nuevo para descubrir otros gustos.</p>
+      <div class="f">90% lo seguro · 10% probar algo distinto</div>
+      <p class="use">📍 Por eso a veces aparece un video "random" que no tiene nada que ver contigo.</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">TU HISTORIAL COMO FRASE</div>
+      <h3>Transformers de secuencia</h3>
+      <p>Lee la lista de lo que viste como si fuera una frase y predice "la siguiente palabra": el próximo video que querrás ver.</p>
+      <div class="f">[gato, gato, receta, gato, …] → ¿siguiente?</div>
+      <p class="use">📍 Los recomendadores más nuevos de Meta, YouTube y Spotify.</p>
+    </div>
+    <div class="type" style="--c:#ff6b6b">
+      <div class="tag">LOS GUARDIANES</div>
+      <h3>Moderación automática</h3>
+      <p>Redes CNN miran imágenes y videos, y Transformers leen textos para detectar violencia, spam, desnudos o noticias falsas antes de que se difundan.</p>
+      <div class="f">si P(dañino) &gt; umbral → bloquear o revisar</div>
+      <p class="use">📍 Todas las redes. Lo dudoso pasa a revisores humanos.</p>
+    </div>
+  </div>
+
+  <div class="note">⚠️ Estos algoritmos optimizan lo que les pidieron: que <b>sigas mirando</b>. Eso puede crear <b>burbujas de filtro</b> (solo ves opiniones parecidas a la tuya) y hacer que el contenido exagerado se difunda más. Saber cómo funcionan ayuda a usarlos con criterio.</div>
+</div>
+</section>
+
+<!-- ================= CÓDIGO ================= -->
+<section id="codigo">
+<div class="page">
+  <h2>¿Cómo piensa esta neurona?</h2>
+  <p class="lead">El camino completo, desde lo que escribes hasta la respuesta.</p>
+
+  <div class="schema">
+  <svg viewBox="0 0 640 300" font-family="system-ui,sans-serif" font-size="13">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#7cf3ff"/></marker></defs>
+    <g fill="#e6ebff" text-anchor="middle">
+      <rect x="10" y="20" width="110" height="60" rx="10" fill="#1d2645"/>
+      <text x="65" y="45" font-weight="700">"hola"</text><text x="65" y="65" fill="#8b94b3" font-size="11">texto</text>
+
+      <rect x="150" y="20" width="140" height="60" rx="10" fill="#1d2645"/>
+      <text x="220" y="42" font-weight="700">hola · hol · ola</text><text x="220" y="65" fill="#8b94b3" font-size="11">① trozos de 3 letras</text>
+
+      <rect x="320" y="20" width="140" height="60" rx="10" fill="#1d2645"/>
+      <text x="390" y="42" font-weight="700">x = [0,1,0,…,1]</text><text x="390" y="65" fill="#8b94b3" font-size="11">② vector de 256 cajitas</text>
+
+      <rect x="490" y="20" width="140" height="60" rx="10" fill="#1d2645"/>
+      <text x="560" y="42" font-weight="700">x · w</text><text x="560" y="65" fill="#8b94b3" font-size="11">③ comparar con cada neurona</text>
+    </g>
+    <g stroke="#7cf3ff" stroke-width="2" marker-end="url(#ar)">
+      <line x1="120" y1="50" x2="148" y2="50"/><line x1="290" y1="50" x2="318" y2="50"/><line x1="460" y1="50" x2="488" y2="50"/>
+      <line x1="560" y1="80" x2="560" y2="120"/>
+    </g>
+    <g text-anchor="middle" font-size="12">
+      <circle cx="420" cy="160" r="26" fill="#3a2a10" stroke="#ffe66b"/><text x="420" y="157" fill="#ffe66b">w₁</text><text x="420" y="172" fill="#ffe66b" font-size="10">0.58</text>
+      <circle cx="500" cy="160" r="26" fill="#1d2645" stroke="#555f88"/><text x="500" y="157" fill="#8b94b3">w₂</text><text x="500" y="172" fill="#8b94b3" font-size="10">0.10</text>
+      <circle cx="580" cy="160" r="26" fill="#1d2645" stroke="#555f88"/><text x="580" y="157" fill="#8b94b3">w₃</text><text x="580" y="172" fill="#8b94b3" font-size="10">0.00</text>
+      <text x="500" y="210" fill="#8b94b3">④ gana la más parecida</text>
+    </g>
+    <g stroke="#ffe66b" stroke-width="2" marker-end="url(#ar)"><line x1="394" y1="165" x2="300" y2="200"/></g>
+    <rect x="80" y="190" width="220" height="60" rx="10" fill="#1e4a37"/>
+    <text x="190" y="215" text-anchor="middle" fill="#7dffa8" font-weight="700" font-size="15">"¡Hola! ¿Cómo estás?"</text>
+    <text x="190" y="237" text-anchor="middle" fill="#8b94b3" font-size="11">⑤ su respuesta</text>
+    <text x="320" y="285" text-anchor="middle" fill="#ff7ce5" font-size="12">Si ninguna se parece lo suficiente al enseñar → nace una neurona nueva</text>
+  </svg>
+  </div>
+
+  <h2>Las matemáticas</h2>
+
+  <div class="formula">
+    <h3><span class="num">1</span>Convertir texto en números</h3>
+    <p>Cada trozo de palabra cae en una de 256 cajitas (con una función <i>hash</i>). Se cuenta cuántos trozos cayeron en cada cajita y luego se <b>normaliza</b> para que el vector mida 1.</p>
+    <div class="eq">x<sub>i</sub> = c<sub>i</sub> / √(c<sub>1</sub>² + c<sub>2</sub>² + … + c<sub>256</sub>²)</div>
+    <p class="use" style="color:var(--mut)">c<sub>i</sub> = cuántos trozos cayeron en la cajita i.</p>
+  </div>
+
+  <div class="formula">
+    <h3><span class="num">2</span>¿Qué tanto se parece? (producto punto)</h3>
+    <p>Se multiplica cajita por cajita y se suma. Da 1 si son iguales y 0 si no comparten nada. Es el <b>coseno</b> del ángulo entre los dos vectores.</p>
+    <div class="eq">s<sub>k</sub> = x · w<sub>k</sub> = x<sub>1</sub>w<sub>k1</sub> + x<sub>2</sub>w<sub>k2</sub> + … + x<sub>256</sub>w<sub>k256</sub></div>
+    <p><b>Ejemplo real:</b> "hola" → {hola, hol, ola} y "holaa" → {holaa, hol, ola, laa}. Comparten 2 trozos:</p>
+    <div class="eq">s = 2 / (√3 · √4) = 2 / 3.46 ≈ <b>0.58</b></div>
+  </div>
+
+  <div class="formula">
+    <h3><span class="num">3</span>Responder: gana la mayor</h3>
+    <div class="eq">k* = argmax<sub>k</sub> s<sub>k</sub> &nbsp;&nbsp;→&nbsp; responde si s<sub>k*</sub> ≥ 0.25</div>
+  </div>
+
+  <div class="formula">
+    <h3><span class="num">4</span>Aprender o crecer</h3>
+    <p>Al enseñar, se busca la neurona con la misma respuesta. Si se parece lo suficiente (más que la <b>vigilancia ρ</b>), se acerca un poquito a lo nuevo:</p>
+    <div class="eq">w ← normalizar( w + η · (x − w) )</div>
+    <div class="eq">η = 0.2 / (1 + 0.1 · usos)</div>
+    <p>η (eta) es la <b>tasa de aprendizaje</b>. Baja con los usos: una neurona con experiencia cambia menos, como un recuerdo que se consolida.</p>
+    <p>Si no se parece lo suficiente (s &lt; ρ), <b>nace una neurona nueva</b> con w = x. Así el cerebro crece sin olvidar lo anterior.</p>
+  </div>
+
+  <h2>El código (Python)</h2>
+  <p class="lead">Es el corazón del archivo <code>neurona_creciente.py</code>: solo unas 40 líneas.</p>
+  <button class="sec" id="bCode" style="width:auto">📋 Copiar código</button>
+<pre><code id="code"><span class="k">import</span> math
+
+DIM = <span class="s">256</span>          <span class="c"># cajitas del vector</span>
+VIGILANCIA = <span class="s">0.55</span>   <span class="c"># ρ: exigencia para reforzar en vez de crecer</span>
+TASA = <span class="s">0.2</span>          <span class="c"># η inicial</span>
+
+<span class="k">def</span> <span class="fn">vectorizar</span>(texto):
+    v = [<span class="s">0.0</span>] * DIM
+    <span class="k">for</span> palabra <span class="k">in</span> limpiar(texto).split():
+        <span class="c"># ① la palabra entera + trozos de 3 letras</span>
+        piezas = [palabra] + [palabra[i:i+<span class="s">3</span>] <span class="k">for</span> i <span class="k">in</span> range(max(<span class="s">1</span>, len(palabra)-<span class="s">2</span>))]
+        <span class="k">for</span> p <span class="k">in</span> piezas:
+            v[hash_estable(p) % DIM] += <span class="s">1</span>    <span class="c"># ② a su cajita</span>
+    <span class="k">return</span> normalizar(v)
+
+<span class="k">def</span> <span class="fn">normalizar</span>(v):
+    n = math.sqrt(sum(x*x <span class="k">for</span> x <span class="k">in</span> v)) <span class="k">or</span> <span class="s">1</span>
+    <span class="k">return</span> [x / n <span class="k">for</span> x <span class="k">in</span> v]
+
+<span class="k">def</span> <span class="fn">similitud</span>(a, b):              <span class="c"># ③ producto punto</span>
+    <span class="k">return</span> sum(x*y <span class="k">for</span> x, y <span class="k">in</span> zip(a, b))
+
+<span class="k">def</span> <span class="fn">ensenar</span>(neuronas, frase, respuesta):
+    x = vectorizar(frase)
+    iguales = [n <span class="k">for</span> n <span class="k">in</span> neuronas <span class="k">if</span> n[<span class="s">"respuesta"</span>] == respuesta]
+    mejor = max(iguales, key=<span class="k">lambda</span> n: similitud(x, n[<span class="s">"peso"</span>]), default=<span class="k">None</span>)
+    <span class="k">if</span> mejor <span class="k">and</span> similitud(x, mejor[<span class="s">"peso"</span>]) >= VIGILANCIA:
+        <span class="c"># ④a APRENDER: w ← w + η(x − w)</span>
+        eta = TASA / (<span class="s">1</span> + mejor[<span class="s">"usos"</span>] * <span class="s">0.1</span>)
+        mejor[<span class="s">"peso"</span>] = normalizar([w + eta*(xi - w) <span class="k">for</span> w, xi <span class="k">in</span> zip(mejor[<span class="s">"peso"</span>], x)])
+        mejor[<span class="s">"usos"</span>] += <span class="s">1</span>
+        mejor[<span class="s">"fuentes"</span>].append(frase)
+    <span class="k">else</span>:
+        <span class="c"># ④b CRECER: nace una neurona nueva</span>
+        neuronas.append({<span class="s">"peso"</span>: x, <span class="s">"respuesta"</span>: respuesta, <span class="s">"usos"</span>: <span class="s">1</span>, <span class="s">"fuentes"</span>: [frase]})
+
+<span class="k">def</span> <span class="fn">responder</span>(neuronas, frase):
+    x = vectorizar(frase)
+    gana = max(neuronas, key=<span class="k">lambda</span> n: similitud(x, n[<span class="s">"peso"</span>]))   <span class="c"># ⑤ argmax</span>
+    s = similitud(x, gana[<span class="s">"peso"</span>])
+    <span class="k">return</span> (gana[<span class="s">"respuesta"</span>], gana[<span class="s">"fuentes"</span>], s) <span class="k">if</span> s >= <span class="s">0.25</span> <span class="k">else</span> (<span class="s">"No lo sé"</span>, [], s)</code></pre>
+  <div class="note">🧪 Enseña "hola" → "¡Hola! ¿Cómo estás?" y luego pregunta "holaa", "hola amigos" y "buenas". Las dos primeras comparten trozos con "hola"; "buenas" no comparte ninguno, así que no sabrá qué responder.</div>
+</div>
+</section>
+
+<!-- ================= HERRAMIENTAS DE IA ================= -->
+<section id="herramientas">
+<div class="page">
+  <h2>🛠️ Herramientas de IA: cómo se usan y qué se puede lograr</h2>
+  <p class="lead">Ordenadas de la más sencilla a la más compleja. Las primeras solo cambian <b>lo que le das al modelo</b> (texto, archivos, instrucciones). Las últimas cambian <b>el modelo mismo</b> (sus pesos). La regla de hoy: sube de nivel solo cuando el anterior ya no alcance.</p>
+
+  <div class="formula">
+    <h3>La escalera</h3>
+    <div class="eq" style="font-family:inherit;font-size:15px;white-space:normal">💬 Chat → 📓 Notebook → ⚡ Automatización → 🧩 Skill → 🔌 API → 💻 Modelo local → 🔗 MCP → 🤖 Agente → 👁️ Multimodal → 🧰 Arnés → 📏 Evals → 📚 RAG → 🎯 Fine-tuning → 🏋️ Reentrenamiento</div>
+    <p>⬅️ Barato, rápido, sin programar &nbsp;·&nbsp; Caro, lento, necesita datos y GPU ➡️</p>
+  </div>
+
+  <h2>Sin tocar el modelo (cambias el contexto)</h2>
+  <div class="types">
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">NIVEL 1 · MUY FÁCIL</div>
+      <h3>💬 Chat y prompts</h3>
+      <p><b>Cómo se usa:</b> escribes en Claude, ChatGPT o Gemini. Un buen prompt dice el rol, la tarea, el formato y un ejemplo.</p>
+      <div class="f">"Eres profesor. Explica X en 5 pasos, con un ejemplo."</div>
+      <p class="use">🎯 <b>Se logra:</b> resúmenes, explicaciones, borradores, ideas y código pequeño en segundos.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">NIVEL 2 · FÁCIL</div>
+      <h3>📓 Notebooks</h3>
+      <p><b>Cómo se usa:</b> dos tipos. <b>NotebookLM</b>: subes PDFs, videos o apuntes y la IA responde solo con tus fuentes, citándolas. <b>Jupyter / Google Colab</b>: celdas de Python para probar código y modelos paso a paso, con GPU gratis en Colab.</p>
+      <div class="f">fuentes → preguntas con citas · celda → ejecutar → ver resultado</div>
+      <p class="use">🎯 <b>Se logra:</b> estudiar un tema con tus propios documentos (incluso en podcast), y experimentar con datos y modelos sin instalar nada.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">NIVEL 3 · FÁCIL</div>
+      <h3>⚡ Automatización sin código</h3>
+      <p><b>Cómo se usa:</b> en <b>n8n</b>, <b>Zapier</b> o <b>Make</b> unes bloques en un diagrama: un disparador (llegó un correo, un formulario, una hora), un paso de IA y una acción. No hay que programar.</p>
+      <div class="f">📧 correo nuevo → 🧠 IA resume y clasifica → 📊 fila en la hoja + aviso</div>
+      <p class="use">🎯 <b>Se logra:</b> quitarte tareas repetitivas: responder formularios, ordenar correos, publicar en redes, pasar datos entre apps, todo solo.</p>
+    </div>
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">NIVEL 4 · FÁCIL–MEDIO</div>
+      <h3>🧩 Skills (habilidades)</h3>
+      <p><b>Cómo se usa:</b> una carpeta con un archivo <code>SKILL.md</code> (instrucciones) y, si hace falta, scripts y plantillas. El modelo la carga solo cuando la tarea lo necesita. Funciona en Claude, Claude Code y otros agentes que adoptaron el formato.</p>
+      <div class="f">mi-skill/ → SKILL.md + scripts/ + plantillas/</div>
+      <p class="use">🎯 <b>Se logra:</b> "especializar" la IA sin entrenarla: que siempre haga tus informes, tu estilo de código o tus procesos igual, una y otra vez.</p>
+    </div>
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">NIVEL 5 · MEDIO</div>
+      <h3>🔌 APIs</h3>
+      <p><b>Cómo se usa:</b> desde tu programa (Python, JavaScript) envías un mensaje al modelo con una clave y recibes la respuesta. Pagas por <i>tokens</i>. Incluye <b>tool use</b>: le describes funciones y el modelo decide cuándo llamarlas.</p>
+      <div class="f">client.messages.create(model=…, messages=[…], tools=[…])</div>
+      <p>➕ <b>Salidas estructuradas</b>: la respuesta llega como JSON con el formato exacto que pides. <b>Caché de prompts</b>: si repites un contexto largo (un libro, un manual), se guarda y cuesta mucho menos.</p>
+      <p class="use">🎯 <b>Se logra:</b> meter la IA dentro de tus propias apps: chatbots, clasificadores, traductores, procesar miles de documentos automáticamente.</p>
+    </div>
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">NIVEL 6 · MEDIO</div>
+      <h3>💻 Modelos locales y cuantización</h3>
+      <p><b>Cómo se usa:</b> descargas un modelo abierto (Llama, Qwen, Gemma, Mistral, DeepSeek) y lo corres en tu PC con <b>Ollama</b>, <b>LM Studio</b> o <b>llama.cpp</b>. La <b>cuantización</b> guarda los pesos con menos bits (16 → 8 → 4) para que quepan en menos memoria, perdiendo muy poca calidad.</p>
+      <div class="f">ollama run qwen3 · modelo 8B en 4 bits ≈ 5 GB de memoria</div>
+      <p class="use">🎯 <b>Se logra:</b> IA sin internet, gratis y privada (tus datos no salen del equipo). Es la que va dentro de un robot, una Jetson o una Raspberry Pi.</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">NIVEL 7 · MEDIO</div>
+      <h3>🔗 MCP (conectores)</h3>
+      <p><b>Cómo se usa:</b> <i>Model Context Protocol</i>, un "USB-C para la IA". Un servidor MCP expone herramientas (Drive, GitHub, una base de datos, un robot) y cualquier cliente compatible las usa sin programar cada integración.</p>
+      <div class="f">IA ⇄ MCP ⇄ Gmail · Calendar · GitHub · tu base de datos</div>
+      <p class="use">🎯 <b>Se logra:</b> que la IA lea y actúe en tus herramientas reales: buscar en tus archivos, crear tickets, consultar datos.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">NIVEL 8 · MEDIO–DIFÍCIL</div>
+      <h3>🤖 Agentes</h3>
+      <p><b>Cómo se usa:</b> el modelo trabaja en un bucle: <b>pensar → usar herramienta → ver resultado → repetir</b> hasta terminar. Ejemplos: Claude Code, Codex, agentes con el Agent SDK. Pueden lanzar subagentes para dividir el trabajo.</p>
+      <div class="f">meta → plan → herramienta → observar → … → resultado</div>
+      <p>➕ <b>Multiagentes</b>: un agente "jefe" reparte el trabajo entre varios especialistas (investigar, programar, revisar). El protocolo <b>A2A</b> permite que agentes de distintas empresas se hablen entre sí.</p>
+      <p class="use">🎯 <b>Se logra:</b> tareas de varios pasos sin supervisión constante: programar y probar una función, investigar en la web, ordenar archivos, generar reportes.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">NIVEL 9 · MEDIO–DIFÍCIL</div>
+      <h3>👁️ Multimodal y uso de computadora</h3>
+      <p><b>Cómo se usa:</b> los modelos ya no solo leen texto: <b>ven</b> fotos, PDFs y video, <b>escuchan y hablan</b> en tiempo real (modo voz) y <b>generan</b> imágenes y video. Con <b>computer use</b>, un agente mira capturas de pantalla y maneja el navegador o el escritorio con clics y teclado.</p>
+      <div class="f">📸 captura → "veo el botón Enviar" → clic (x, y) → nueva captura</div>
+      <p class="use">🎯 <b>Se logra:</b> leer facturas y gráficos, asistentes de voz, llenar formularios web solo, usar programas que no tienen API. Es la misma idea que los modelos visión-lenguaje-acción de los robots.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">NIVEL 10 · DIFÍCIL</div>
+      <h3>🧰 Arnés (harness)</h3>
+      <p><b>Cómo se usa:</b> todo lo que rodea al modelo para que el agente sea confiable: memoria persistente, skills, MCP, permisos y aprobaciones, sandbox para ejecutar código, hooks y registros (trazas). <b>Agente = modelo + arnés.</b></p>
+      <div class="f">modelo + memoria + skills + herramientas + permisos + evaluación</div>
+      <p>➕ <b>Guardrails y seguridad</b>: filtros de entrada y salida, permisos mínimos y defensa contra la <i>inyección de prompts</i> (texto escondido en una web o un correo que intenta darle órdenes al agente).</p>
+      <p class="use">🎯 <b>Se logra:</b> agentes seguros y medibles en producción. Hoy la mayoría de los equipos mejora sus productos ajustando el arnés y las evaluaciones, no reentrenando.</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">NIVEL 11 · DIFÍCIL</div>
+      <h3>📏 Evaluaciones (evals)</h3>
+      <p><b>Cómo se usa:</b> armas un conjunto de casos de prueba con la respuesta esperada y mides el sistema con cada cambio. Se califica con reglas (¿el JSON es válido? ¿pasan los tests?), con personas o con otro modelo como juez (<i>LLM-as-judge</i>).</p>
+      <div class="f">100 casos → versión A: 72% · versión B: 85% → gana B</div>
+      <p class="use">🎯 <b>Se logra:</b> saber con números si un prompt, skill, modelo o fine-tuning de verdad mejoró, en vez de "me pareció mejor". Sin evals no se puede subir de nivel con seguridad.</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">NIVEL 12 · DIFÍCIL</div>
+      <h3>📚 RAG (búsqueda + IA)</h3>
+      <p><b>Cómo se usa:</b> partes tus documentos en trozos, los conviertes en <i>embeddings</i> (vectores, como las cajitas de este cerebro) y, antes de responder, buscas los más parecidos y se los das al modelo.</p>
+      <div class="f">pregunta → buscar trozos similares → modelo responde con ellos</div>
+      <p>➕ Los vectores se guardan en una <b>base vectorial</b> (Chroma, Qdrant, pgvector, FAISS) que busca por parecido en milisegundos, con la misma idea del producto punto de la pestaña de matemáticas.</p>
+      <p class="use">🎯 <b>Se logra:</b> un asistente que conoce miles de documentos de tu empresa o universidad y siempre está actualizado, sin reentrenar.</p>
+    </div>
+  </div>
+
+  <h2>Cambiando el modelo (cambias los pesos)</h2>
+  <div class="types">
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">NIVEL 13 · MUY DIFÍCIL</div>
+      <h3>🎯 Fine-tuning (ajuste fino)</h3>
+      <p><b>Cómo se usa:</b> tomas un modelo ya entrenado (Llama, Qwen, Gemma, Mistral) y lo entrenas un poco más con cientos o miles de ejemplos tuyos. Con <b>LoRA / QLoRA</b> solo se entrenan unas matrices pequeñas, y basta una GPU (o Colab). Herramientas: Hugging Face TRL, Unsloth, Axolotl.</p>
+      <div class="f">W' = W + B·A &nbsp;(LoRA: solo B y A aprenden)</div>
+      <p>➕ <b>Destilación</b>: un modelo grande (el "profesor") genera respuestas y un modelo pequeño (el "alumno") se entrena con ellas. Así se logra algo casi igual de bueno, pero mucho más rápido y barato.</p>
+      <p class="use">🎯 <b>Se logra:</b> un estilo o formato fijo, una tarea muy específica, o un modelo pequeño y barato que imita a uno grande. Ojo: no es la mejor forma de enseñarle datos nuevos (para eso, RAG).</p>
+    </div>
+    <div class="type" style="--c:#ff5c7a">
+      <div class="tag">NIVEL 14 · EXPERTO</div>
+      <h3>🏋️ Reentrenamiento</h3>
+      <p><b>Cómo se usa:</b> tres grados. <b>Preentrenamiento continuo</b>: seguir entrenando con mucho texto de un dominio (medicina, leyes, un idioma). <b>Aprendizaje por refuerzo</b> (RLHF, DPO, GRPO): premiar las buenas respuestas en un entorno con recompensas. <b>Desde cero</b>: miles de GPUs y billones de tokens.</p>
+      <div class="f">datos masivos → GPUs → días o meses → evaluar → repetir</div>
+      <p class="use">🎯 <b>Se logra:</b> modelos de razonamiento, agentes entrenados en su propio entorno o modelos nuevos para un dominio. Solo vale la pena con muchos datos, presupuesto y un equipo.</p>
+    </div>
+  </div>
+
+  <div class="note">🧭 <b>¿Cuál uso?</b> ¿Quieres que la IA <b>sepa</b> algo? Notebook o RAG. ¿Que <b>haga</b> algo siempre igual? Skill o automatización. ¿Que <b>actúe</b> en tus herramientas? MCP + agente. ¿Que funcione <b>sin internet</b> o dentro de un robot? Modelo local. ¿Saber si <b>mejoró</b>? Evals. ¿Que <b>se comporte</b> distinto aunque cambies el prompt? Fine-tuning. Este mismo "Cerebro Creciente" es un ejemplo en miniatura: aprende ajustando sus pesos (w ← w + η(x − w)), como un fine-tuning diminuto.</div>
+</div>
+</section>
+
+<!-- ================= ROBÓTICA ================= -->
+<section id="robotica">
+<div class="page">
+  <h2>🤖 Robótica actual: sistemas, modelos y herramientas</h2>
+  <p class="lead">Un robot moderno repite sin parar tres pasos: <b>percibir</b> (cámaras y sensores), <b>pensar</b> (modelos de IA y planificadores) y <b>actuar</b> (motores). Cada paso tiene sus herramientas favoritas.</p>
+
+  <div class="formula">
+    <h3>El ciclo de un robot</h3>
+    <div class="eq" style="font-family:inherit;font-size:16px">📷 sensores → <b>YOLO / SLAM</b> → 🧠 <b>política de IA / planificador</b> → ⚙️ <b>ros2_control</b> → motores → (otra vez, 50–1000 veces por segundo)</div>
+    <p>Y antes de tocar el robot real, todo se entrena y se prueba en un <b>simulador</b>: es más barato romper un robot virtual.</p>
+  </div>
+
+  <h2>🧩 La base: Ubuntu, SSH y lo que se instala encima</h2>
+  <p class="lead">El sistema operativo de verdad casi siempre es <b>Linux (Ubuntu)</b>. ROS 2 no lo reemplaza: es un programa que se instala encima para organizar las partes del robot. Muchos robots, sobre todo los primeros, funcionan solo con Ubuntu + SSH + scripts en Python.</p>
+  <div class="formula">
+    <div class="eq" style="font-family:inherit;font-size:15px;white-space:normal">🖥️ tu PC —<b>SSH</b>→ 🤖 <b>Ubuntu Server</b> en el robot → (opcional) <b>ROS 2</b> → tus programas → motores y sensores</div>
+  </div>
+  <div class="types">
+    <div class="type" style="--c:#ff9f43">
+      <div class="tag">⭐ LA BASE DE TODO</div>
+      <h3>Ubuntu Server</h3>
+      <p>Linux sin escritorio gráfico: gasta menos memoria y batería, ideal para la computadora del robot (Raspberry Pi, Jetson, mini PC).</p>
+      <div class="f">Ubuntu 24.04 LTS → compatible con ROS 2 Jazzy</div>
+      <p class="use">📍 Herramientas clave: <b>systemd</b> (arrancar tu programa al encender), <b>apt</b> y <b>pip/uv</b> (instalar), <b>journalctl</b> (ver errores).</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">CONTROL REMOTO</div>
+      <h3>SSH y sus amigos</h3>
+      <p>Entras al robot desde tu PC por la red, sin pantalla ni teclado conectados. Es como lo hacen casi todos los robotistas.</p>
+      <div class="f">ssh usuario@ip-del-robot</div>
+      <p class="use">📍 <b>scp/rsync</b> (copiar archivos), <b>tmux</b> (que el programa siga aunque se corte la conexión), <b>VS Code Remote-SSH</b> (editar el código del robot desde tu PC).</p>
+    </div>
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">EL SIGUIENTE PASO · OPCIONAL</div>
+      <h3>ROS 2</h3>
+      <p>No es un sistema operativo de verdad, sino un "pegamento": divide el robot en <b>nodos</b> (cámara, motores, mapa) que se hablan publicando mensajes en <b>tópicos</b>.</p>
+      <div class="f">nodo_cámara → /imagen → nodo_yolo → /objetos → nodo_brazo</div>
+      <p class="use">📍 Versiones Jazzy y Kilted. Usa DDS para comunicarse en red y en tiempo real. Lo usan desde robots de universidad hasta empresas.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">PAQUETES DE ROS 2</div>
+      <h3>Nav2 · MoveIt 2 · ros2_control</h3>
+      <p><b>Nav2</b> lleva un robot con ruedas de A a B sin chocar. <b>MoveIt 2</b> planea movimientos de brazos. <b>ros2_control</b> habla con los motores.</p>
+      <div class="f">meta → planear ruta → evitar obstáculos → mover</div>
+      <p class="use">📍 Robots de bodega, aspiradoras, brazos industriales.</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">ROS EN CHIPS PEQUEÑOS</div>
+      <h3>micro-ROS</h3>
+      <p>Una versión mínima de ROS 2 que corre en microcontroladores como ESP32 o STM32, para que un sensor barato hable con el resto del robot.</p>
+      <div class="f">ESP32 ⇄ micro-ROS ⇄ ROS 2 en la computadora</div>
+      <p class="use">📍 Robots educativos, drones y proyectos con Arduino.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">VER POR DENTRO</div>
+      <h3>RViz2 · Foxglove</h3>
+      <p>Pantallas para ver lo que "piensa" el robot: el mapa, lo que ve la cámara, la ruta planeada y el estado de cada motor.</p>
+      <div class="f">depurar = ver los datos en 3D</div>
+      <p class="use">📍 Imprescindibles para encontrar errores sin adivinar.</p>
+    </div>
+  </div>
+
+  <h2>👁️ Visión y ubicación</h2>
+  <div class="types">
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">DETECTAR EN TIEMPO REAL</div>
+      <h3>YOLO (You Only Look Once)</h3>
+      <p>Una red convolucional que mira la imagen <b>una sola vez</b> y dice qué objetos hay y dónde, con una caja alrededor de cada uno.</p>
+      <div class="f">imagen → [persona 0.94 (x,y,w,h), pelota 0.88 …]</div>
+      <p class="use">📍 Versiones de Ultralytics (YOLOv8, YOLO11 y posteriores). Corre en una Raspberry Pi o una Jetson.</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">RECORTAR Y MEDIR</div>
+      <h3>SAM 2 · Depth Anything · OpenCV</h3>
+      <p><b>SAM 2</b> recorta cualquier objeto pixel a pixel, <b>Depth Anything</b> calcula la distancia con una sola cámara y <b>OpenCV</b> es la caja de herramientas clásica de visión.</p>
+      <div class="f">¿qué es? · ¿dónde termina? · ¿a qué distancia?</div>
+      <p class="use">📍 Agarrar objetos, esquivar obstáculos, calibrar cámaras.</p>
+    </div>
+    <div class="type" style="--c:#ffe66b">
+      <div class="tag">¿DÓNDE ESTOY?</div>
+      <h3>SLAM</h3>
+      <p>Construye un mapa del lugar <b>mientras</b> calcula dónde está el robot dentro de él, usando cámaras o LiDAR.</p>
+      <div class="f">ORB-SLAM3 · Cartographer · RTAB-Map · slam_toolbox</div>
+      <p class="use">📍 Aspiradoras robot, drones, autos autónomos.</p>
+    </div>
+  </div>
+
+  <h2>🧠 Modelos de IA para robots</h2>
+  <div class="types">
+    <div class="type" style="--c:#ff9f43">
+      <div class="tag">VER + ENTENDER + ACTUAR</div>
+      <h3>Modelos VLA (visión-lenguaje-acción)</h3>
+      <p>Como un chatbot, pero en vez de responder con texto responde con <b>movimientos</b>. Le dices "guarda la taza" y mueve el brazo.</p>
+      <div class="f">imagen + "guarda la taza" → ángulos de los motores</div>
+      <p class="use">📍 <b>Gemini Robotics</b> (Google DeepMind), <b>π0</b> (Physical Intelligence), <b>GR00T N1</b> (NVIDIA) para humanoides, <b>OpenVLA</b> y <b>SmolVLA</b> (abiertos).</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">APRENDER IMITANDO</div>
+      <h3>LeRobot · ACT · Diffusion Policy</h3>
+      <p>Mueves el robot tú mismo (teleoperación) unas decenas de veces y la red aprende a repetirlo sola. <b>LeRobot</b> de Hugging Face trae todo listo.</p>
+      <div class="f">50 demostraciones humanas → política que imita</div>
+      <p class="use">📍 Brazos baratos como el SO-101 de LeRobot, robots de Pollen Robotics.</p>
+    </div>
+    <div class="type" style="--c:#c792ea">
+      <div class="tag">APRENDER PROBANDO</div>
+      <h3>Aprendizaje por refuerzo (PPO)</h3>
+      <p>El robot virtual prueba millones de veces: si avanza sin caerse gana puntos, si se cae pierde. Así aprende a caminar solo.</p>
+      <div class="f">acción → premio/castigo → ajustar pesos → repetir millones de veces</div>
+      <p class="use">📍 Perros robot, humanoides y el Microduck. PPO es el algoritmo más usado.</p>
+    </div>
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">IMAGINAR ANTES DE MOVERSE</div>
+      <h3>Modelos del mundo (JEPA, Cosmos)</h3>
+      <p>Predicen qué va a pasar si el robot hace algo, para elegir el mejor movimiento sin probarlo de verdad.</p>
+      <div class="f">¿qué pasa si empujo? → predicción → decido</div>
+      <p class="use">📍 V-JEPA 2 de Meta y NVIDIA Cosmos (genera mundos para entrenar).</p>
+    </div>
+  </div>
+
+  <h2>🎮 Simuladores</h2>
+  <div class="types">
+    <div class="type" style="--c:#ffe66b">
+      <div class="tag">⭐ EL QUE USA MICRODUCK</div>
+      <h3>MuJoCo · MuJoCo Warp · mjlab</h3>
+      <p><b>MuJoCo</b> (de Google DeepMind, gratis) simula física de contacto muy precisa. <b>MuJoCo Warp</b> lo corre en la tarjeta gráfica con miles de robots a la vez, y <b>mjlab</b> facilita entrenar con RL encima.</p>
+      <div class="f">4 096 robots virtuales aprendiendo en paralelo</div>
+      <p class="use">📍 Microduck, MuJoCo Playground, MuJoCo Menagerie (biblioteca de robots listos).</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">NVIDIA</div>
+      <h3>Isaac Sim · Isaac Lab</h3>
+      <p>Simulador con gráficos realistas y física en GPU. Isaac Lab es la parte para entrenar robots con RL e imitación.</p>
+      <div class="f">mundo fotorrealista + física + sensores virtuales</div>
+      <p class="use">📍 Humanoides, autos y brazos industriales. Necesita una GPU NVIDIA potente.</p>
+    </div>
+    <div class="type" style="--c:#7cf3ff">
+      <div class="tag">AMIGO DE ROS 2</div>
+      <h3>Gazebo · Webots</h3>
+      <p>Simuladores clásicos que se conectan directo con ROS 2: el mismo código maneja el robot virtual y el real.</p>
+      <div class="f">probar Nav2 en una casa virtual antes que en la real</div>
+      <p class="use">📍 Gazebo (Harmonic/Jetty) y Webots son gratis y muy usados en clases.</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">LIGEROS Y RÁPIDOS</div>
+      <h3>PyBullet · Genesis</h3>
+      <p><b>PyBullet</b> es sencillo y se instala con un comando. <b>Genesis</b> es un simulador nuevo en Python muy rápido en GPU.</p>
+      <div class="f">pip install pybullet → simular en minutos</div>
+      <p class="use">📍 Prototipos rápidos y aprender sin hardware.</p>
+    </div>
+  </div>
+
+  <div class="formula">
+    <h3>🦆 Cómo aprende a caminar el Microduck (Pollen Robotics)</h3>
+    <p>Un robot bípedo de ~25 cm y ~800 g que camina, se levanta del suelo, patea una pelota y da volteretas. Su receta es un buen ejemplo de la robótica actual:</p>
+    <div class="eq" style="font-family:inherit;font-size:15px;white-space:normal">Onshape (diseño 3D) → <b>onshape-to-robot</b> → modelo MJCF → <b>mjlab + MuJoCo Warp</b> con <b>PPO</b> → política en <b>ONNX</b> → robot real a 50 Hz</div>
+    <p><span class="num">1</span>Diseñan las piezas en <b>Onshape</b> y las convierten en un modelo para MuJoCo.</p>
+    <p><span class="num">2</span>Simulan los motores <b>Dynamixel XL330</b> con mucho detalle (voltaje, fricción, contra-EMF) usando el modelo <b>BAM</b>. Según el equipo, ahí está casi toda la diferencia entre la simulación y la realidad.</p>
+    <p><span class="num">3</span>Entrenan con RL en la GPU y exportan la red a <b>ONNX</b> para correrla en el robot, que lleva un chip <b>Rockchip RK3566</b>.</p>
+  </div>
+
+  <h2>💻 Lenguajes, formatos y hardware</h2>
+  <div class="types">
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">LENGUAJES</div>
+      <h3>Python · C++ · Rust · C</h3>
+      <p><b>Python</b> para IA y prototipos. <b>C++</b> para lo que debe ser rápido (control y drivers en ROS 2). <b>Rust</b> está creciendo por ser seguro. <b>C</b> en microcontroladores.</p>
+      <div class="f">entrenar en Python → ejecutar en C++</div>
+      <p class="use">📍 Herramientas de apoyo: Docker, uv, Git, PyTorch, ONNX Runtime.</p>
+    </div>
+    <div class="type" style="--c:#ffb86b">
+      <div class="tag">DESCRIBIR UN ROBOT</div>
+      <h3>URDF · MJCF · SDF · USD</h3>
+      <p>Archivos de texto que describen las piezas, uniones y motores del robot para que el simulador lo entienda.</p>
+      <div class="f">URDF/SDF → ROS y Gazebo · MJCF → MuJoCo · USD → Isaac</div>
+      <p class="use">📍 Se generan desde CAD (Onshape, Fusion 360, SolidWorks).</p>
+    </div>
+  </div>
+
+  <h2>🔌 Placas para robots y su capacidad de IA</h2>
+  <p class="lead">La IA dentro del robot corre en un <b>NPU</b> o una <b>GPU</b>: chips especiales para multiplicar matrices (los pesos de la red). Su fuerza se mide en <b>TOPS</b>, billones de operaciones por segundo. Más TOPS permite redes más grandes y más rápidas, pero también gasta más energía y cuesta más.</p>
+  <div class="types">
+    <div class="type" style="--c:#ffe66b">
+      <div class="tag">⭐ LA DEL MICRODUCK</div>
+      <h3>Rockchip RK3566</h3>
+      <p>4 núcleos ARM Cortex-A55, GPU Mali-G52 y un NPU pequeño (~1 TOPS). Barato y de bajo consumo. En el Microduck mueve el ciclo de control a 50 Hz con 15 servos, la radio y la cámara, y ejecuta la política entrenada en ONNX.</p>
+      <div class="f">red pequeña de control (ONNX) → 50 decisiones por segundo</div>
+      <p class="use">📍 Placas: Radxa ZERO 3, Orange Pi 3B, Pine64 Quartz64. Corren Ubuntu/Debian y se manejan por SSH.</p>
+    </div>
+    <div class="type" style="--c:#ff9f43">
+      <div class="tag">ROCKCHIP POTENTE</div>
+      <h3>Rockchip RK3588</h3>
+      <p>8 núcleos (4× A76 + 4× A55), GPU Mali-G610 y NPU de <b>6 TOPS</b>. Corre YOLO en tiempo real y modelos de lenguaje pequeños dentro del robot.</p>
+      <div class="f">modelo.onnx → RKNN-Toolkit2 → modelo.rknn (corre en el NPU)</div>
+      <p class="use">📍 Placas: Orange Pi 5, Radxa ROCK 5B, Khadas Edge2. Buena relación precio/potencia.</p>
+    </div>
+    <div class="type" style="--c:#7dffa8">
+      <div class="tag">NVIDIA · IA EN SERIO</div>
+      <h3>Jetson Orin · Thor</h3>
+      <p>GPU NVIDIA con CUDA: corre lo mismo que tu PC (PyTorch, TensorRT). <b>Orin Nano Super</b> ~67 TOPS, <b>AGX Orin</b> hasta 275 TOPS y <b>Thor</b> está pensada para humanoides con modelos VLA como GR00T.</p>
+      <div class="f">modelo.onnx → TensorRT → máxima velocidad en la GPU</div>
+      <p class="use">📍 Perros robot, humanoides y autos autónomos. Usa JetPack (basado en Ubuntu).</p>
+    </div>
+    <div class="type" style="--c:#ff7ce5">
+      <div class="tag">RASPBERRY + ACELERADOR</div>
+      <h3>Raspberry Pi 5 + AI HAT+</h3>
+      <p>La Pi sola no tiene NPU, pero se le pone un acelerador <b>Hailo</b> (13 o 26 TOPS) para correr YOLO rápido.</p>
+      <div class="f">Pi 5 (lógica) + Hailo (visión con IA)</div>
+      <p class="use">📍 Muy documentada y fácil para empezar. Otra opción: Google Coral (4 TOPS) por USB.</p>
+    </div>
+    <div class="type" style="--c:#6bb8ff">
+      <div class="tag">MICROCONTROLADORES</div>
+      <h3>ESP32-S3 · STM32 · Arduino</h3>
+      <p>No corren Linux. Manejan motores y sensores en tiempo real y, como mucho, redes diminutas (TinyML) para detectar una palabra o un gesto.</p>
+      <div class="f">TensorFlow Lite Micro · micro-ROS</div>
+      <p class="use">📍 Motores típicos que controlan: servos Dynamixel (Microduck) y Feetech (SO-101).</p>
+    </div>
+  </div>
+
+  <div class="formula">
+    <h3>Comparación rápida</h3>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="color:var(--mut);text-align:left"><th style="padding:6px">Placa</th><th>IA (aprox.)</th><th>¿Qué puede correr?</th></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px">ESP32-S3</td><td>casi nada</td><td>redes diminutas, control de motores</td></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px"><b>RK3566</b> (Microduck)</td><td>~1 TOPS</td><td>políticas de control pequeñas, visión simple</td></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px">RK3588</td><td>6 TOPS</td><td>YOLO en tiempo real, modelos de lenguaje pequeños</td></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px">Pi 5 + Hailo</td><td>13–26 TOPS</td><td>YOLO rápido con varias cámaras</td></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px">Jetson Orin Nano Super</td><td>~67 TOPS</td><td>YOLO + SLAM + modelos medianos</td></tr>
+      <tr style="border-top:1px solid #1b2238"><td style="padding:6px">Jetson AGX Orin / Thor</td><td>275+ TOPS</td><td>modelos VLA para humanoides</td></tr>
+    </table>
+    </div>
+    <p>💡 La clave del Microduck: <b>se entrena en una GPU NVIDIA grande</b> (en el PC, con MuJoCo Warp) y la red ya entrenada, que es pequeña, <b>corre en un chip barato</b> (RK3566). Entrenar requiere mucha potencia; ejecutar, muy poca.</p>
+  </div>
+
+  <div class="note">🔗 Conexión con este cerebro: igual que aquí "aprender es ajustar números", un robot que aprende a caminar en MuJoCo también ajusta millones de pesos. La diferencia es que su salida no es una frase sino <b>el ángulo de cada motor, 50 veces por segundo</b>.</div>
+</div>
+</section>
+
+<div class="modal" id="modal">
+  <div class="card">
+    <h2>Guardar o cargar cerebro</h2>
+    <textarea id="json" rows="8" placeholder="Pega aquí un cerebro guardado (cerebro.json)"></textarea>
+    <div class="row">
+      <button id="bCopy">Copiar</button>
+      <button id="bLoad">Cargar</button>
+      <button class="sec" id="bClose">Cerrar</button>
+    </div>
+    <div class="log" id="mlog"></div>
+  </div>
+</div>
+
+<script>
+/* ===== Lógica: la misma neurona creciente del script de Python ===== */
+const DIM = 256, TASA = 0.2, UMBRAL = 0.25;
+let VIG = 0.55;
+let neuronas = []; // {peso, respuesta, usos, fuentes, x, y, born}
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function limpiar(t){
+  return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9ñ ]/g," ");
+}
+function hashE(s){ let h=2166136261>>>0; for(const c of new TextEncoder().encode(s)){h^=c;h=Math.imul(h,16777619)>>>0;} return h; }
+function norm(v){ let n=0; for(const x of v) n+=x*x; n=Math.sqrt(n)||1; return v.map(x=>x/n); }
+function piezas(t){
+  const out=[];
+  for(const p of limpiar(t).split(/\s+/).filter(Boolean)){
+    out.push(p); for(let i=0;i<Math.max(1,p.length-2);i++) out.push(p.slice(i,i+3));
+  }
+  return out;
+}
+function vec(t){ const v=new Array(DIM).fill(0); for(const q of piezas(t)) v[hashE(q)%DIM]+=1; return norm(v); }
+const sim=(a,b)=>{let s=0; for(let i=0;i<a.length;i++) s+=a[i]*b[i]; return s;};
+const hue=r=>hashE(r)%360;
+
+function ensenar(frase,resp){
+  const v=vec(frase);
+  let mejor=null,s=-1;
+  for(const n of neuronas) if(n.respuesta===resp){const k=sim(v,n.peso); if(k>s){s=k;mejor=n;}}
+  if(mejor && s>=VIG){
+    const t=TASA/(1+mejor.usos*0.1);
+    mejor.peso=norm(mejor.peso.map((w,i)=>w+t*(v[i]-w))); mejor.usos++;
+    mejor.fuentes=mejor.fuentes||[];
+    if(!mejor.fuentes.includes(frase)) mejor.fuentes.push(frase);
+    if(mejor.fuentes.length>20) mejor.fuentes.shift();
+    pulso(mejor,"#ffffff"); return `Reforcé lo que sabía (parecido ${s.toFixed(2)}).`;
+  }
+  const [x,y]=posicion(resp);
+  neuronas.push({peso:v,respuesta:resp,usos:1,fuentes:[frase],x,y,born:performance.now()});
+  return `¡Nació una neurona! Ahora tengo ${neuronas.length}.`;
+}
+function preguntar(frase){
+  if(!neuronas.length) return null;
+  const v=vec(frase);
+  const sims=neuronas.map(n=>sim(v,n.peso));
+  let i=0; for(let k=1;k<sims.length;k++) if(sims[k]>sims[i]) i=k;
+  return {n:neuronas[i],s:sims[i],sims};
+}
+
+/* ===== Forma del cerebro ===== */
+const CX=195,CY=135,RX=165,RY=108;
+function dentro(x,y){
+  const dx=(x-CX)/RX, dy=(y-CY)/RY;
+  return dx*dx+dy*dy<0.82 && Math.abs(x-CX)>6;
+}
+function rnd(seed){ let s=seed>>>0; return ()=>{s=Math.imul(s^(s>>>15),2246822507)>>>0; s=Math.imul(s^(s>>>13),3266489909)>>>0; return ((s^(s>>>16))>>>0)/4294967296;}; }
+function posicion(resp){
+  const r=rnd(hashE(resp)+neuronas.length*7919);
+  const misma=neuronas.filter(n=>n.respuesta===resp);
+  for(let k=0;k<400;k++){
+    let x,y;
+    if(misma.length){ const b=misma[Math.floor(r()*misma.length)]; x=b.x+(r()-.5)*60; y=b.y+(r()-.5)*50; }
+    else { x=CX+(r()*2-1)*RX; y=CY+(r()*2-1)*RY; }
+    if(!dentro(x,y)) continue;
+    if(neuronas.every(n=>Math.hypot(n.x-x,n.y-y)>14)) return [x,y];
+  }
+  return [CX+(r()-.5)*RX, CY+(r()-.5)*RY];
+}
+
+/* ===== Dibujo ===== */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+let W=0,H=0,S=1,OX=0,OY=0;
+function resize(){
+  const r=cv.getBoundingClientRect(), d=devicePixelRatio||1;
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d); W=cv.width; H=cv.height;
+  S=Math.min(W/400,H/300); OX=(W-400*S)/2; OY=(H-300*S)/2;
+}
+const P=(x,y)=>[OX+x*S,OY+y*S];
+
+const giros=[]; (()=>{const r=rnd(42); for(let i=0;i<34;i++){
+  let x,y; do{x=CX+(r()*2-1)*RX;y=CY+(r()*2-1)*RY;}while(!dentro(x,y));
+  const pts=[[x,y]]; let a=r()*6.28;
+  for(let j=0;j<5;j++){a+=(r()-.5)*1.6; x+=Math.cos(a)*14; y+=Math.sin(a)*12; pts.push([x,y]);}
+  giros.push(pts);
+}})();
+
+function contorno(){
+  ctx.beginPath();
+  for(let i=0;i<=200;i++){
+    const t=i/200*Math.PI*2, w=1+0.035*Math.sin(t*14)+0.02*Math.sin(t*5);
+    const x=CX+Math.cos(t)*RX*w, y=CY+Math.sin(t)*RY*w*(Math.sin(t)>0?0.92:1);
+    const [px,py]=P(x,y); i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+  }
+  ctx.closePath();
+}
+
+let activ=new Map(), señales=[], anillos=[];
+function pulso(n,col){ anillos.push({n,t:performance.now(),col}); }
+const nacida=(n,now)=>now>=n.born;
+
+function dibujar(now){
+  try{ pintar(now); }catch(e){ console.log(e); }
+  requestAnimationFrame(dibujar);
+}
+function pintar(now){
+  const rc=cv.getBoundingClientRect(), d=devicePixelRatio||1;
+  if(Math.round(rc.width*d)!==W || Math.round(rc.height*d)!==H) resize();
+  if(!W||!H||S<=0) return;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#15192b";
+  ctx.beginPath(); const [a,b]=P(285,228); ctx.ellipse(a,b,58*S,30*S,-.15,0,7); ctx.fill();
+  const [tx,ty]=P(236,225); ctx.fillRect(tx,ty,22*S,55*S);
+  contorno();
+  const [gx,gy]=P(CX,CY-30), [hx,hy]=P(CX,CY);
+  const g=ctx.createRadialGradient(gx,gy,10*S,hx,hy,RX*S);
+  g.addColorStop(0,"#2a2350"); g.addColorStop(1,"#141631");
+  ctx.fillStyle=g; ctx.fill();
+  ctx.lineWidth=2*S; ctx.strokeStyle="#4b4a8c"; ctx.stroke();
+  ctx.save(); contorno(); ctx.clip();
+  ctx.strokeStyle="rgba(120,110,200,.25)"; ctx.lineWidth=1.6*S;
+  ctx.beginPath(); ctx.moveTo(...P(CX,CY-RY));
+  for(let y=CY-RY;y<CY+RY;y+=6){const [px,py]=P(CX+Math.sin(y*.15)*3,y); ctx.lineTo(px,py);} ctx.stroke();
+  for(const p of giros){ ctx.beginPath(); ctx.moveTo(...P(...p[0]));
+    for(let i=1;i<p.length;i++){const m=[(p[i-1][0]+p[i][0])/2,(p[i-1][1]+p[i][1])/2]; ctx.quadraticCurveTo(...P(...p[i-1]),...P(...m));}
+    ctx.stroke(); }
+  ctx.restore();
+
+  const vivas=neuronas.filter(n=>nacida(n,now));
+  for(let i=0;i<vivas.length;i++) for(let j=i+1;j<vivas.length;j++){
+    const A=vivas[i],B=vivas[j], s=sim(A.peso,B.peso), mismo=A.respuesta===B.respuesta;
+    if(s<0.15 && !mismo) continue;
+    const act=Math.max(activ.get(A)||0,activ.get(B)||0);
+    ctx.strokeStyle=mismo?`hsla(${hue(A.respuesta)},90%,65%,${0.25+act*.6})`:`rgba(160,170,255,${0.08+s*.35+act*.4})`;
+    ctx.lineWidth=(mismo?1.6:1)*S;
+    ctx.beginPath(); ctx.moveTo(...P(A.x,A.y)); ctx.lineTo(...P(B.x,B.y)); ctx.stroke();
+  }
+  señales=señales.filter(s=>{
+    const k=(now-s.t)/s.d; if(k>1) return false; if(k<0) return true;
+    const x=s.a[0]+(s.b[0]-s.a[0])*k, y=s.a[1]+(s.b[1]-s.a[1])*k;
+    ctx.fillStyle="#fff"; ctx.shadowColor=s.col; ctx.shadowBlur=12*S;
+    ctx.beginPath(); ctx.arc(...P(x,y),2.4*S,0,7); ctx.fill(); ctx.shadowBlur=0; return true;
+  });
+  for(const n of vivas){
+    const edad=Math.max(0,Math.min(1,(now-n.born)/900)), crec=1-Math.pow(1-edad,3);
+    if(crec<=0.001) continue;
+    const act=activ.get(n)||0, h=hue(n.respuesta);
+    const r=Math.max(0.1,(4+Math.min(6,Math.log2(n.usos+1)*1.8))*S*crec*(1+act*.5)*(1+0.06*Math.sin(now/400+n.x)));
+    const [px,py]=P(n.x,n.y);
+    const gl=ctx.createRadialGradient(px,py,0,px,py,r*4);
+    gl.addColorStop(0,`hsla(${h},100%,70%,${0.35+act*.6})`); gl.addColorStop(1,`hsla(${h},100%,60%,0)`);
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(px,py,r*4,0,7); ctx.fill();
+    ctx.fillStyle=`hsl(${h},100%,${70+act*25}%)`; ctx.beginPath(); ctx.arc(px,py,r,0,7); ctx.fill();
+  }
+  anillos=anillos.filter(a=>{const k=(now-a.t)/900; if(k>1) return false; if(k<0) return true;
+    ctx.strokeStyle=a.col; ctx.globalAlpha=1-k; ctx.lineWidth=2*S;
+    ctx.beginPath(); ctx.arc(...P(a.n.x,a.n.y),(6+k*30)*S,0,7); ctx.stroke(); ctx.globalAlpha=1; return true;});
+  for(const [n,v] of activ){ const nv=v*0.985; nv<0.01?activ.delete(n):activ.set(n,nv); }
+}
+
+/* ===== Interfaz ===== */
+const $=id=>document.getElementById(id);
+function guardar(){ try{localStorage.setItem("cerebro",JSON.stringify(neuronas.map(({born,...n})=>n)));}catch(e){} }
+function cargar(arr){
+  const t0=performance.now();
+  neuronas=[];
+  arr.forEach((n,i)=>{ const o={...n,fuentes:n.fuentes||[],born:t0+i*60}; if(o.x==null){[o.x,o.y]=posicion(o.respuesta);} neuronas.push(o); });
+}
+function refrescar(){
+  $("cnt").textContent=neuronas.length;
+  const g={}; for(const n of neuronas){ (g[n.respuesta]=g[n.respuesta]||{u:0,k:0,f:[]}); g[n.respuesta].u+=n.usos; g[n.respuesta].k++; g[n.respuesta].f.push(...(n.fuentes||[])); }
+  $("ideas").textContent=Object.keys(g).length;
+  $("list").innerHTML=Object.entries(g).map(([r,o])=>
+    `<div><div class="qa"><span class="who">💬 Si le dicen</span>${o.f.length?o.f.slice(-6).map(f=>`<span class="chip">${esc(f)}</span>`).join(""):'<span class="chip">(sin registro)</span>'}</div>`+
+    `<div class="qa"><span class="who">🤖 Responde</span><span class="dot" style="background:hsl(${hue(r)},100%,65%)"></span> <b>${esc(r)}</b></div>`+
+    `<div class="n">${o.k} neurona${o.k>1?"s":""} · ${o.u} uso${o.u>1?"s":""}</div></div>`).join("")
+    || '<div style="color:var(--mut)">Nada todavía</div>';
+  guardar();
+}
+function mostrar(t,sub){ const b=$("bubble"); b.innerHTML=t+(sub?`<small>${sub}</small>`:""); b.classList.add("on");
+  clearTimeout(mostrar.t); mostrar.t=setTimeout(()=>b.classList.remove("on"),4500); }
+
+function explicar(frase,res){
+  const best={};
+  neuronas.forEach((n,i)=>{ const s=res.sims[i]; if(!best[n.respuesta]||s>best[n.respuesta].s) best[n.respuesta]={s,n}; });
+  const top=Object.entries(best).sort((a,b)=>b[1].s-a[1].s).slice(0,4);
+  const pq=piezas(frase), setQ=new Set(pq);
+  const fuentes=res.n.fuentes||[];
+  const comunes=new Set(); for(const f of fuentes) for(const p of piezas(f)) if(setQ.has(p)) comunes.add(p);
+  const sabe=res.s>=UMBRAL;
+  let h=`<h2>Lo que pensó</h2>
+    <div class="q">💬 Tú preguntaste: «${esc(frase)}»</div>
+    <div class="q" style="margin-top:4px">🤖 Respondió:</div>
+    <div class="a" style="color:${sabe?"var(--ok)":"var(--mut)"}">${sabe?esc(res.n.respuesta):"🤔 No lo sé todavía"}</div>
+    <div class="lbl">📚 Lo sabe porque le enseñaste esa respuesta para estas frases:</div>
+    <div>${fuentes.length?fuentes.map(f=>`<span class="chip">«${esc(f)}»</span>`).join(""):'<span class="chip">(sin registro)</span>'}</div>
+    <div class="lbl">🔎 Trozos de tu pregunta (verde = coincidieron con la fuente)</div>
+    <div>${[...new Set(pq)].map(p=>`<span class="chip ${comunes.has(p)?"hit":""}">${esc(p)}</span>`).join("")}</div>
+    <div class="lbl">🎯 Respuestas posibles</div>`;
+  for(const [r,o] of top){
+    const pct=Math.max(0,Math.round(o.s*100));
+    h+=`<div class="cand">${esc(r)} <span style="float:right;color:var(--mut)">${o.s.toFixed(2)}</span></div>
+        <div class="bar"><i style="width:${pct}%;background:hsl(${hue(r)},100%,60%)"></i></div>`;
+  }
+  h+=`<div class="log">Necesita al menos ${UMBRAL} para responder.</div>`;
+  $("think").innerHTML=h;
+}
+
+$("bEns").onclick=()=>{
+  const f=$("fEns").value.trim(), r=$("rEns").value.trim();
+  if(!f||!r){$("log").textContent="Escribe la frase y la respuesta.";return;}
+  $("log").textContent=ensenar(f,r); $("fEns").value=""; $("fEns").focus(); refrescar();
+};
+$("bPre").onclick=()=>{
+  const f=$("fPre").value.trim(); if(!f) return;
+  const res=preguntar(f);
+  if(!res){mostrar("Aún no sé nada","Enséñame algo primero");return;}
+  res.sims.forEach((s,i)=>activ.set(neuronas[i],Math.max(0,s)*.7));
+  activ.set(res.n,1);
+  const ent=[CX-RX-10,CY+20+Math.random()*20], now=performance.now();
+  neuronas.forEach((n,i)=>{ if(res.sims[i]>0.1) señales.push({a:ent,b:[n.x,n.y],t:now,d:500+Math.random()*300,col:"#7cf3ff"}); });
+  for(const n of neuronas) if(n!==res.n && n.respuesta===res.n.respuesta)
+    señales.push({a:[res.n.x,res.n.y],b:[n.x,n.y],t:now+500,d:500,col:`hsl(${hue(n.respuesta)},100%,65%)`});
+  setTimeout(()=>pulso(res.n,`hsl(${hue(res.n.respuesta)},100%,70%)`),600);
+  setTimeout(()=>{
+    if(res.s<UMBRAL) mostrar("🤔 No lo sé todavía",`confianza ${res.s.toFixed(2)}`);
+    else mostrar(esc(res.n.respuesta),`confianza ${res.s.toFixed(2)}`);
+    explicar(f,res);
+  },700);
+  $("log").textContent=`Pensé con ${neuronas.length} neuronas.`;
+};
+$("fPre").onkeydown=e=>{if(e.key==="Enter")$("bPre").click();};
+$("rEns").onkeydown=e=>{if(e.key==="Enter")$("bEns").click();};
+$("vig").oninput=e=>{VIG=+e.target.value; $("vigv").textContent=VIG.toFixed(2);};
+
+const EJ=[["hola","¡Hola! ¿Cómo estás?"],["buenos días","¡Hola! ¿Cómo estás?"],["hola amigos","¡Hola! ¿Cómo estás?"],
+ ["qué es un robot","Una máquina que siente, piensa y actúa"],["para qué sirve un robot","Una máquina que siente, piensa y actúa"],
+ ["de qué color es el cielo","Azul"],["cuál es el planeta rojo","Marte"],["qué planeta es rojo","Marte"],
+ ["cómo se llama la misión a la luna","Artemis"],["qué es un sensor","Los ojos y oídos del robot"],["para qué sirve un sensor","Los ojos y oídos del robot"]];
+$("bEj").onclick=()=>{ let i=0; const t=setInterval(()=>{ if(i>=EJ.length){clearInterval(t);return;}
+  $("log").textContent=ensenar(...EJ[i++]); refrescar(); },350); };
+
+let confirmar=false;
+$("bBorr").onclick=()=>{ if(!confirmar){confirmar=true;$("bBorr").textContent="¿Seguro?";
+  setTimeout(()=>{confirmar=false;$("bBorr").textContent="Borrar";},2500);return;}
+  neuronas=[]; activ.clear(); confirmar=false; $("bBorr").textContent="Borrar"; $("log").textContent="Cerebro vacío."; refrescar(); };
+
+$("bExp").onclick=()=>{ $("json").value=JSON.stringify(neuronas.map(({born,x,y,...n})=>n)); $("mlog").textContent=""; $("modal").classList.add("on"); };
+$("bClose").onclick=()=>$("modal").classList.remove("on");
+$("bCopy").onclick=async()=>{ try{await navigator.clipboard.writeText($("json").value);$("mlog").textContent="Copiado. Guárdalo como cerebro.json";}
+  catch(e){$("json").select();$("mlog").textContent="Selecciona el texto y cópialo a mano.";} };
+$("bLoad").onclick=()=>{ try{ const a=JSON.parse($("json").value); if(!Array.isArray(a)) throw 0;
+  cargar(a); refrescar(); $("modal").classList.remove("on"); $("log").textContent=`Cargué ${a.length} neuronas.`; }
+  catch(e){ $("mlog").textContent="Ese texto no es un cerebro válido."; } };
+
+$("bCode").onclick=async()=>{ try{await navigator.clipboard.writeText($("code").innerText);$("bCode").textContent="✅ Copiado";}
+  catch(e){$("bCode").textContent="Selecciona el código a mano";} setTimeout(()=>$("bCode").textContent="📋 Copiar código",2000); };
+
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===b.dataset.t));
+  scrollTo(0,0);
+});
+
+try{ const s=localStorage.getItem("cerebro"); if(s) cargar(JSON.parse(s)); }catch(e){}
+refrescar(); requestAnimationFrame(dibujar);
+if(neuronas.length) $("log").textContent=`Recordé ${neuronas.length} neuronas.`;
+</script>
+</body>
+</html>
