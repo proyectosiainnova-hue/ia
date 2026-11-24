@@ -87,6 +87,16 @@
   code .k{color:#ff7ce5} code .c{color:#6b7699;font-style:italic} code .s{color:#7dffa8} code .fn{color:#7cf3ff}
   .schema{background:var(--panel);border-radius:14px;padding:10px;text-align:center}
   .schema svg{width:100%;max-width:640px;height:auto}
+  /* animación CNN */
+  .cnn{background:var(--panel);border-radius:14px;padding:12px;margin-top:10px}
+  #cnnCv{width:100%;height:auto;aspect-ratio:900/640;border-radius:10px;background:#0b0f1a}
+  .cnn-steps{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+  .cnn-steps button{width:auto;background:#1b2340;font-weight:500;padding:6px 10px;font-size:13px}
+  .cnn-steps button.on{background:linear-gradient(135deg,#2a6df4,#7c3aed);font-weight:700}
+  .cnn-cap{font-size:14px;min-height:44px}
+  .cnn-ctl{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+  .cnn-ctl button{width:auto}
+  .cnn select{background:#070a12;border:1px solid #2b3760;color:var(--txt);border-radius:10px;padding:9px;font-size:14px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -214,6 +224,35 @@
       <p>No escribe respuestas: lee un texto y devuelve una <b>decisión con tipo</b> (sí/no, una categoría, un número) junto con su <b>probabilidad</b>. Es un modelo discriminativo entrenado a escala de internet.</p>
       <div class="f">"¿Este correo es spam?" → { spam: sí, P = 0.97 }</div>
       <p class="use">📍 Clasificar, moderar y filtrar en 70–500 ms, mucho más rápido y barato que un chatbot. Se entrena con "aprendizaje por refuerzo para decisiones calibradas". Su arquitectura no es pública.</p>
+    </div>
+  </div>
+
+  <h2>🎬 Así ve una red convolucional (CNN)</h2>
+  <p class="lead">Mira paso a paso cómo una CNN pasa de una imagen de píxeles a decir "es un gato". Toca un paso para saltar a él.</p>
+  <div class="cnn">
+    <canvas id="cnnCv" width="900" height="640"></canvas>
+    <div class="cnn-steps" id="cnnSteps">
+      <button data-s="0">① Convolución</button>
+      <button data-s="1">② Mapas</button>
+      <button data-s="2">③ Pooling</button>
+      <button data-s="3">④ Conectadas</button>
+      <button data-s="4">⑤ Salida</button>
+    </div>
+    <div class="cnn-cap" id="cnnCap"></div>
+    <div class="cnn-ctl">
+      <button id="cnnPlay">⏸ Pausar</button>
+      <button class="sec" id="cnnReset">↺ Reiniciar</button>
+      <select id="cnnK" title="Filtro">
+        <option value="v">Filtro: bordes verticales</option>
+        <option value="h">Filtro: bordes horizontales</option>
+        <option value="d">Filtro: diagonales</option>
+        <option value="l">Filtro: contornos</option>
+      </select>
+      <select id="cnnV" title="Velocidad">
+        <option value="0.5">Lento</option>
+        <option value="1" selected>Normal</option>
+        <option value="2">Rápido</option>
+      </select>
     </div>
   </div>
 
@@ -1054,6 +1093,233 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
 try{ const s=localStorage.getItem("cerebro"); if(s) cargar(JSON.parse(s)); }catch(e){}
 refrescar(); requestAnimationFrame(dibujar);
 if(neuronas.length) $("log").textContent=`Recordé ${neuronas.length} neuronas.`;
+</script>
+
+<!-- ===== Animación CNN ===== -->
+<script>
+(()=>{
+const cv=document.getElementById("cnnCv"); if(!cv) return;
+const g=cv.getContext("2d"), LW=900, LH=640, dpr=Math.max(1,devicePixelRatio||1);
+cv.width=LW*dpr; cv.height=LH*dpr; g.setTransform(dpr,0,0,dpr,0,0);
+
+const C={panel:"#141a2b",line:"#2b3760",txt:"#e6ebff",mut:"#8b94b3",acc:"#7cf3ff",acc2:"#ff7ce5",ok:"#7dffa8",empty:"#1b2238"};
+const CAT=[
+"....................",
+"..#..............#..",
+"..##............##..",
+"..#.#..........#.#..",
+"..#..##########..#..",
+".#................#.",
+".#................#.",
+".#...##......##...#.",
+".#...##......##...#.",
+".#................#.",
+".#.......pp.......#.",
+".#......#..#......#.",
+".#.......##.......#.",
+"..#..............#..",
+"...#............#...",
+"....##........##....",
+"......########......",
+"....................",
+"....................",
+"...................."];
+const N=20, M=18;
+const IMG=CAT.map(r=>[...r].map(c=>c==="#"?1:c==="p"?0.6:0));
+const KS={
+  v:{n:"verticales",k:[[-1,0,1],[-2,0,2],[-1,0,1]]},
+  h:{n:"horizontales",k:[[-1,-2,-1],[0,0,0],[1,2,1]]},
+  d:{n:"diagonales",k:[[0,1,2],[-1,0,1],[-2,-1,0]]},
+  l:{n:"contornos",k:[[0,-1,0],[-1,4,-1],[0,-1,0]]}};
+const ORDER=["v","h","d","l"];
+const MAPS={};
+ORDER.forEach(id=>{
+  const k=KS[id].k, o=[];
+  for(let i=0;i<M;i++){o.push([]);for(let j=0;j<M;j++){let s=0;
+    for(let m=0;m<3;m++)for(let n=0;n<3;n++) s+=IMG[i+m][j+n]*k[m][n];
+    o[i].push(s);}}
+  const mx=Math.max(...o.flat().map(Math.abs))||1;
+  // bloque 4×4 más variado para el pooling
+  let best=null,bv=-1;
+  for(let i=0;i<=M-4;i+=2)for(let j=0;j<=M-4;j+=2){
+    const q=[];for(let a=0;a<4;a++)for(let b=0;b<4;b++) q.push(Math.round(Math.abs(o[i+a][j+b])/mx*9));
+    const mean=q.reduce((x,y)=>x+y,0)/16, v=q.reduce((x,y)=>x+(y-mean)**2,0)+new Set(q).size*4;
+    if(v>bv){bv=v;best=q;}
+  }
+  MAPS[id]={o,mx,pool:best};
+});
+
+// red totalmente conectada
+let seed=11; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const LAY=[6,8,8,4,3], FX=[50,175,300,425,550];
+const ACT=LAY.map(n=>Array.from({length:n},()=>0.25+0.75*rnd())); ACT[4]=[1,0.3,0.15];
+const W8=LAY.slice(0,-1).map((n,L)=>Array.from({length:n},()=>Array.from({length:LAY[L+1]},rnd)));
+const nodeY=(L,i)=>{const n=LAY[L], sp=Math.min(14,112/(n-1)); return 562+(i-(n-1)/2)*sp;};
+const OUT=[["Gato",92],["Perro",6],["Pájaro",2]], OY=[522,562,602];
+
+// línea de tiempo (s)
+const T=[0,8,10,13,16,18], TOTAL=21;
+const CAPS=[
+ "<b>① Convolución.</b> El filtro <b>K</b> (3×3) recorre la imagen. En cada posición multiplica los 9 píxeles de la ventana por los 9 pesos y los suma: ese número es un píxel del mapa. <span style='color:#ff6b6b'>Rojo</span> = el patrón aparece fuerte; <span style='color:#6b8bff'>azul</span> = no aparece.",
+ "<b>② Mapas de características.</b> La red usa muchos filtros a la vez y cada uno produce su propio mapa: uno ve bordes verticales, otro horizontales, otro diagonales… Los filtros no se programan: la red los aprende.",
+ "<b>③ Pooling.</b> El mapa se parte en bloques de 2×2 y de cada bloque se queda solo el número mayor. La imagen queda 4 veces más pequeña pero conserva lo importante.",
+ "<b>④ Capas totalmente conectadas.</b> Todos los números se aplanan en una lista y pasan por neuronas tipo perceptrón: cada una está conectada con todas las de la capa anterior.",
+ "<b>⑤ Salida.</b> La última capa da una probabilidad por clase (softmax). La más alta es la respuesta: ¡es un gato!"];
+
+const P={in:{x:10,y:10,w:280,h:300,t:"Entrada (imagen)"},conv:{x:300,y:10,w:590,h:300,t:"Convolución"},
+  fm:{x:10,y:320,w:430,h:150,t:"Mapas de características"},pool:{x:450,y:320,w:440,h:150,t:"Pooling (máximo 2×2)"},
+  fc:{x:10,y:480,w:580,h:150,t:"Capas totalmente conectadas"},out:{x:600,y:480,w:290,h:150,t:"Salida"}};
+
+const cl=v=>Math.max(0,Math.min(1,v)), ease=v=>1-(1-v)**3;
+function jet(t){t=cl(t);const f=x=>Math.round(255*cl(1.5-Math.abs(x)));return `rgb(${f(4*t-3)},${f(4*t-2)},${f(4*t-1)})`;}
+function panel(p,on){
+  g.fillStyle=C.panel; g.strokeStyle=on?C.acc:C.line; g.lineWidth=on?2:1;
+  g.beginPath(); g.roundRect(p.x,p.y,p.w,p.h,10); g.fill(); g.stroke();
+  g.fillStyle=on?C.acc:C.txt; g.font="600 14px system-ui,sans-serif"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(p.t,p.x+p.w/2,p.y+18);
+}
+function txt(s,x,y,o={}){g.fillStyle=o.c||C.txt;g.font=o.f||"12px system-ui,sans-serif";g.textAlign=o.a||"center";g.textBaseline="middle";g.fillText(s,x,y);}
+function arrow(x1,y1,x2,y2,c){g.strokeStyle=c;g.fillStyle=c;g.lineWidth=1.5;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2-6,y2);g.stroke();
+  g.beginPath();g.moveTo(x2,y2);g.lineTo(x2-8,y2-5);g.lineTo(x2-8,y2+5);g.fill();}
+function dashed(x1,y1,x2,y2,c){g.save();g.setLineDash([4,4]);g.strokeStyle=c;g.lineWidth=1;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();g.restore();}
+const fmt=v=>(Math.round(v*10)/10).toString();
+
+let t=0, last=null, playing=true, speed=1, kid="v", stepShown=-1;
+const steps=[...document.querySelectorAll("#cnnSteps button")], cap=document.getElementById("cnnCap");
+
+function draw(){
+  const ph=t<T[1]?0:t<T[2]?1:t<T[3]?2:t<T[4]?3:4;
+  if(ph!==stepShown){stepShown=ph;cap.innerHTML=CAPS[ph];steps.forEach((b,i)=>b.classList.toggle("on",i===ph));}
+  const map=MAPS[kid], K=KS[kid].k;
+  g.clearRect(0,0,LW,LH);
+
+  // ---- Entrada ----
+  panel(P.in,ph===0);
+  const ix=30, iy=50, cs=12;
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++){
+    const v=IMG[i][j]; g.fillStyle=v===1?C.txt:v>0?C.acc2:"#0f1424";
+    g.fillRect(ix+j*cs,iy+i*cs,cs,cs); g.strokeStyle="#1f2945"; g.lineWidth=.5; g.strokeRect(ix+j*cs+.25,iy+i*cs+.25,cs-.5,cs-.5);
+  }
+  const total=M*M, nDone=t>=T[1]?total:Math.floor(cl(t/T[1])*total), cur=Math.min(nDone,total-1);
+  const ci=Math.floor(cur/M), cj=cur%M;
+
+  // ---- Convolución ----
+  panel(P.conv,ph===0);
+  const ox=650, oy=45;
+  for(let i=0;i<M;i++)for(let j=0;j<M;j++){
+    const k=i*M+j; g.fillStyle=k<nDone?jet(Math.abs(map.o[i][j])/map.mx):C.empty;
+    g.fillRect(ox+j*cs,oy+i*cs,cs-1,cs-1);
+  }
+  // ventana I y filtro K
+  const px=320, ky=95, kc=30, kx=440;
+  for(let m=0;m<3;m++)for(let n=0;n<3;n++){
+    const v=IMG[ci+m][cj+n];
+    g.fillStyle=v===1?"#c9d2f5":v>0?C.acc2:"#0f1424"; g.fillRect(px+n*kc,ky+m*kc,kc-2,kc-2);
+    txt(fmt(v),px+n*kc+kc/2-1,ky+m*kc+kc/2-1,{c:v>0?"#0b0f1a":C.mut,f:"600 12px ui-monospace,monospace"});
+    const w=K[m][n]; g.fillStyle=w<0?"#2a6df4":w>0?"#e5484d":"#2b3760"; g.fillRect(kx+n*kc,ky+m*kc,kc-2,kc-2);
+    txt(String(w),kx+n*kc+kc/2-1,ky+m*kc+kc/2-1,{f:"700 13px ui-monospace,monospace"});
+  }
+  txt("ventana I",px+44,ky+104,{c:C.mut}); txt("filtro K",kx+44,ky+104,{c:C.mut});
+  txt("×",425,ky+44,{f:"700 18px system-ui"}); txt("=",545,ky+44,{f:"700 18px system-ui"});
+  const sv=map.o[ci][cj];
+  g.fillStyle=jet(Math.abs(sv)/map.mx); g.beginPath(); g.roundRect(558,ky+28,52,32,6); g.fill();
+  txt(fmt(sv),584,ky+44,{c:"#0b0f1a",f:"700 14px ui-monospace,monospace"});
+  txt("Σ",584,ky+16,{c:C.mut,f:"600 13px system-ui"});
+  if(ph===0){
+    g.strokeStyle=C.acc2; g.lineWidth=2; g.fillStyle="rgba(255,124,229,.25)";
+    g.fillRect(ix+cj*cs,iy+ci*cs,cs*3,cs*3); g.strokeRect(ix+cj*cs,iy+ci*cs,cs*3,cs*3);
+    dashed(ix+cj*cs+cs*3,iy+ci*cs+cs*1.5,px,ky+44,C.acc2);
+    g.strokeStyle="#fff"; g.lineWidth=2; g.strokeRect(ox+cj*cs-1,oy+ci*cs-1,cs+1,cs+1);
+    dashed(610,ky+44,ox+cj*cs,oy+ci*cs+cs/2,"#fff");
+  } else arrow(612,ky+44,644,ky+44,C.mut);
+  txt("S(i, j) = Σₘ Σₙ  I(i+m, j+n) · K(m, n)",470,272,{c:C.acc,f:"italic 19px 'Cambria Math',Georgia,serif"});
+  txt(`mapa: ${KS[kid].n}`,ox+108,oy+232,{c:C.mut,f:"11px system-ui"});
+
+  // ---- Mapas de características ----
+  panel(P.fm,ph===1);
+  ORDER.forEach((id,n)=>{
+    const x=30+n*102, y=350, s=5, a=t>=T[2]?1:cl((t-T[1]-n*0.4)/0.4);
+    g.strokeStyle=id===kid?C.acc:C.line; g.lineWidth=id===kid?2:1; g.strokeRect(x-1,y-1,M*s+2,M*s+2);
+    if(a>0){g.globalAlpha=a; const mm=MAPS[id];
+      for(let i=0;i<M;i++)for(let j=0;j<M;j++){g.fillStyle=jet(Math.abs(mm.o[i][j])/mm.mx);g.fillRect(x+j*s,y+i*s,s,s);}
+      g.globalAlpha=1;}
+    txt(KS[id].n,x+45,y+104,{c:id===kid?C.acc:C.mut,f:"11px system-ui"});
+  });
+
+  // ---- Pooling ----
+  panel(P.pool,ph===2);
+  const QC=["#7cf3ff","#ff7ce5","#7dffa8","#ffb86b"], mx0=475, my0=350, pc=26;
+  const qNow=t<T[2]?-1:Math.floor((t-T[2])/0.6), shown=t>=T[2];
+  for(let q=0;q<4;q++){const qi=q>>1,qj=q&1;
+    if(qNow===q&&ph===2){g.fillStyle=QC[q]+"40";g.fillRect(mx0+qj*2*pc,my0+qi*2*pc,2*pc,2*pc);}
+    if(q<=qNow){g.strokeStyle=QC[q];g.lineWidth=2;g.strokeRect(mx0+qj*2*pc+1,my0+qi*2*pc+1,2*pc-2,2*pc-2);}
+  }
+  g.strokeStyle=C.line; g.lineWidth=1;
+  for(let a=0;a<4;a++)for(let b=0;b<4;b++){
+    g.strokeRect(mx0+b*pc,my0+a*pc,pc,pc);
+    const v=map.pool[a*4+b], q=(a>>1)*2+(b>>1);
+    const blk=[0,1].flatMap(r=>[0,1].map(c=>map.pool[((a>>1)*2+r)*4+(b>>1)*2+c])), isMax=v===Math.max(...blk);
+    txt(String(v),mx0+b*pc+pc/2,my0+a*pc+pc/2,{c:!shown?"#3a4466":q<=qNow&&isMax?QC[q]:C.txt,f:(q<=qNow&&isMax?"700 ":"")+"13px ui-monospace,monospace"});
+  }
+  arrow(590,402,650,402,C.mut);
+  const rx=660, ry=364, rc=38;
+  for(let q=0;q<4;q++){const qi=q>>1,qj=q&1;
+    g.strokeStyle=q<qNow||(q===qNow&&ph!==2)||(ph>2)?QC[q]:C.line; g.lineWidth=q<=qNow?2:1;
+    g.strokeRect(rx+qj*rc,ry+qi*rc,rc,rc);
+    if(q<qNow||ph>2||(q===qNow&&(t-T[2])%0.6>0.3)){
+      const blk=[0,1].flatMap(r=>[0,1].map(c=>map.pool[(qi*2+r)*4+qj*2+c]));
+      txt(String(Math.max(...blk)),rx+qj*rc+rc/2,ry+qi*rc+rc/2,{c:QC[q],f:"700 16px ui-monospace,monospace"});
+    }
+  }
+  txt("4×4 → 2×2",760,385,{a:"left",c:C.txt,f:"600 13px system-ui"});
+  txt("se queda el mayor",760,405,{a:"left",c:C.mut});
+  txt("de cada bloque",760,421,{a:"left",c:C.mut});
+
+  // ---- Totalmente conectada ----
+  panel(P.fc,ph===3);
+  const w=t<T[3]?-1:(t-T[3])/(T[4]-T[3])*4;
+  for(let L=0;L<4;L++)for(let i=0;i<LAY[L];i++)for(let j=0;j<LAY[L+1];j++){
+    const ww=W8[L][i][j], x1=FX[L],y1=nodeY(L,i),x2=FX[L+1],y2=nodeY(L+1,j);
+    const passing=w>L&&w<L+1, done=w>=L+1;
+    g.strokeStyle=passing?`rgba(124,243,255,${0.15+0.5*ww})`:done?`rgba(124,243,255,${0.08+0.15*ww})`:"rgba(139,148,179,.12)";
+    g.lineWidth=passing?1.2:.8; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    if(passing&&(i+j)%3===0){const f=w-L; g.fillStyle=C.acc; g.beginPath(); g.arc(x1+(x2-x1)*f,y1+(y2-y1)*f,2,0,7); g.fill();}
+  }
+  for(let L=0;L<5;L++)for(let i=0;i<LAY[L];i++){
+    const on=w>=L, a=ACT[L][i];
+    g.fillStyle=on?`rgba(124,243,255,${0.2+0.8*a})`:C.empty; g.strokeStyle=on?C.acc:C.mut; g.lineWidth=1;
+    g.beginPath(); g.arc(FX[L],nodeY(L,i),L===4?7:5,0,7); g.fill(); g.stroke();
+  }
+  for(let i=0;i<3;i++) dashed(FX[4]+8,nodeY(4,i),612,OY[i],w>=4?C.acc:"rgba(139,148,179,.3)");
+
+  // ---- Salida ----
+  panel(P.out,ph===4);
+  const pr=ease(cl((t-T[4])/1.5));
+  OUT.forEach(([n,p],i)=>{
+    const win=i===0&&pr>=1;
+    txt(n+(win?" ✓":""),620,OY[i],{a:"left",c:win?C.ok:C.txt,f:(win?"700 ":"")+"13px system-ui"});
+    g.fillStyle=C.empty; g.fillRect(690,OY[i]-6,140,12);
+    g.fillStyle=i===0?C.ok:C.acc; g.fillRect(690,OY[i]-6,140*p/100*pr,12);
+    txt(Math.round(p*pr)+"%",878,OY[i],{a:"right",c:C.txt,f:"600 13px ui-monospace,monospace"});
+  });
+}
+
+function frame(now){
+  const dt=last==null?0:Math.min(.1,(now-last)/1000); last=now;
+  if(cv.offsetParent!==null){
+    if(playing){t+=dt*speed; if(t>=TOTAL) t=0;}
+    draw();
+  }
+  requestAnimationFrame(frame);
+}
+const play=document.getElementById("cnnPlay");
+play.onclick=()=>{playing=!playing; play.textContent=playing?"⏸ Pausar":"▶ Reproducir";};
+document.getElementById("cnnReset").onclick=()=>{t=0;};
+document.getElementById("cnnK").onchange=e=>{kid=e.target.value;t=0;};
+document.getElementById("cnnV").onchange=e=>{speed=+e.target.value;};
+steps.forEach((b,i)=>b.onclick=()=>{t=T[i]+0.001;});
+requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>
